@@ -1,0 +1,67 @@
+# Ignore build output
+.next/
+out/
+
+# Ignore dependencies
+node_modules/
+
+# Ignore public folder as it usually contains static assets like images
+public/
+
+# Ignore environment variable files
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# Ignore coverage output
+coverage/
+
+# Ignore log files
+*.log
+
+# Ignore the Next.js cache
+.next/cache/
+
+# Ignore any lock files
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# Ignore Docker-related files
+Dockerfile
+docker-compose.yml
+
+# Ignore Prettier configuration itself
+.prettierrc
+.prettierrc.js
+.prettierrc.json
+.prettierrc.yaml
+.prettierignore
+
+# Ignore ESLint configuration files
+.eslintrc.js
+.eslintrc.json
+.eslintrc.yaml
+
+# Ignore TypeScript configuration files
+tsconfig.json
+tsconfig.*.json
+
+# Ignore other configuration files
+babel.config.js
+next.config.js
+
+# Ignore the .idea folder for JetBrains IDEs like WebStorm
+.idea/
+
+# Ignore the .vscode folder for Visual Studio Code
+.vscode/
+
+# Ignore the .husky folder for Git hooks (if you're using Husky)
+.husky/
+
+# Ignore specific src subfolders or files if needed (example)
+# src/some-folder/
+# src/some-file.js
