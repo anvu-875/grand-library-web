@@ -1,3 +1,9 @@
+import { ThemeToggle } from '@/components/theme-toggle';
+
 export default function Home() {
-  return <></>;
+  return (
+    <div className='m-8'>
+      <ThemeToggle />
+    </div>
+  );
 }
