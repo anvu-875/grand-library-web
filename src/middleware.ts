@@ -25,6 +25,24 @@ export function middleware(request: NextRequest) {
     );
   }
 
+  if (request.method === 'GET') {
+    // Rewrite routes that match "/[...slug]/edit" to "/editor/[...slug]"
+    if (request.nextUrl.pathname.endsWith('/edit')) {
+      const pathWithoutEdit = request.nextUrl.pathname.slice(
+        0,
+        request.nextUrl.pathname.length - 5
+      );
+      const pathWithEditPrefix = `/editor${pathWithoutEdit}`;
+
+      return NextResponse.rewrite(new URL(pathWithEditPrefix, request.url));
+    }
+
+    // Disable "/editor/[...slug]"
+    if (request.nextUrl.pathname.startsWith('/editor')) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
+
   return response;
 }
 
