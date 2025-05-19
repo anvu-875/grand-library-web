@@ -1,0 +1,50 @@
+:root {
+  --puck-font-family: var(--font-sans);
+  --puck-font-family-monospaced: var(--font-mono);
+}
+
+:root {
+  --puck-color-white: var(--color-sidebar);
+  --puck-color-black: var(--color-sidebar-foreground);
+  --puck-color-grey-01: var(--color-primary);
+  --puck-color-grey-05: var(--color-border);
+  --puck-color-grey-08: var(--color-primary-foreground);
+  --puck-color-grey-11: var(--color-white);
+  --puck-color-grey-03: var(--color-sidebar-accent-foreground);
+  --puck-color-grey-04: var(--color-neutral-600);
+  --puck-color-grey-07: var(--color-neutral-400);
+  --puck-color-grey-09: var(--color-sidebar-border);
+  --puck-color-grey-12: var(--color-neutral-50);
+  --puck-color-azure-04: var(--color-sky-700);
+  --puck-color-azure-06: var(--color-sky-300);
+  --puck-color-azure-12: var(--color-sky-100);
+  --puck-color-azure-03: var(--color-sky-600);
+  --puck-color-azure-11: var(--color-sky-200);
+  --puck-color-azure-10: var(--color-sky-200);
+}
+
+.dark {
+  --puck-color-grey-04: var(--color-neutral-400);
+  --puck-color-grey-07: var(--color-neutral-500);
+  --puck-color-grey-11: var(--color-sidebar-accent);
+  --puck-color-grey-12: var(--color-neutral-800);
+  --puck-color-azure-04: var(--color-sky-400);
+  --puck-color-azure-06: var(--color-sky-700);
+  --puck-color-azure-12: var(--color-sky-900);
+  --puck-color-azure-03: var(--color-sky-500);
+  --puck-color-azure-11: var(--color-sky-950);
+  --puck-color-azure-10: var(--color-sky-950);
+}
+
+option {
+  background: var(--color-neutral-100);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbarThumbBG) unset !important;
+}
+
+.dark option {
+  background: var(--color-neutral-700);
+}
