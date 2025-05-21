@@ -8,20 +8,27 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write \"src/**/*.{tsx,ts,jsx,js,css,scss}\"",
-    "format:check": "prettier --check \"src/**/*.{tsx,ts,jsx,js,css,scss}\""
+    "format:check": "prettier --check \"src/**/*.{tsx,ts,jsx,js,css,scss}\"",
+    "db:push": "npx drizzle-kit push",
+    "db:generate": "npx drizzle-kit generate",
+    "db:migrate": "npm run db:generate && npx drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@measured/puck": "^0.18.3",
+    "@neondatabase/serverless": "^1.0.0",
     "@radix-ui/react-dropdown-menu": "^2.1.14",
     "@radix-ui/react-slot": "^1.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.43.1",
     "lucide-react": "^0.509.0",
     "next": "15.3.2",
     "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.2.0",
+    "zod": "^3.25.7",
     "zustand": "^5.0.4"
   },
   "devDependencies": {
@@ -30,6 +37,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "eslint-config-prettier": "^10.1.5",
