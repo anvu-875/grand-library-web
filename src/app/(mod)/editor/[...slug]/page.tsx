@@ -15,7 +15,7 @@ import '@measured/puck/puck.css';
 import '@/styles/puck-overrides.css';
 import { Client } from './client';
 import { Metadata } from 'next';
-import { getPage } from '@/lib/get-page';
+import { env } from '@/lib/env';
 
 export async function generateMetadata({
   params,
@@ -37,7 +37,10 @@ export default async function Page({
 }) {
   const { slug = [] } = await params;
   const path = `/${slug.join('/')}`;
-  const data = getPage(path);
+  const data = fetch(
+    `${env.NEXT_PUBLIC_BASE_URL}/api/page-content?path=${path}`,
+    { cache: 'no-store' }
+  ).then((res) => res.json());
 
   return <Client path={path} data={data || {}} />;
 }

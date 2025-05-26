@@ -7,20 +7,29 @@ import { Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTheme } from 'next-themes';
+import { use } from 'react';
 
-export function Client({ path, data }: { path: string; data: Partial<Data> }) {
+export function Client({
+  path,
+  data,
+}: {
+  path: string;
+  data: Promise<Partial<Data>>;
+}) {
+  const pdata = use(data);
   const router = useRouter();
   const { resolvedTheme } = useTheme();
 
   return (
     <Puck
       config={config}
-      data={data}
+      data={pdata}
       onPublish={async (data) => {
-        await fetch('/editor/api', {
+        await fetch('/api/page-content', {
           method: 'post',
           body: JSON.stringify({ data, path }),
         });
+        router.refresh();
       }}
       overrides={{
         iframe: ({ children, document }) => {
@@ -49,5 +58,3 @@ export function Client({ path, data }: { path: string; data: Partial<Data> }) {
     />
   );
 }
-
-Client.theme = 'light';
