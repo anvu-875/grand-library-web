@@ -1,7 +1,8 @@
 import { Client } from './client';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
-import { getPage } from '@/lib/get-page';
+import { env } from '@/lib/env';
+import { Data } from '@measured/puck';
 
 export async function generateMetadata({
   params,
@@ -9,10 +10,29 @@ export async function generateMetadata({
   params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
   const { slug = [] } = await params;
+
+  if (slug[0] == 'page-not-found') {
+    return {
+      title: 'Not found!',
+      description: 'The page you are looking for does not exist.',
+    };
+  }
+
   const path = `/${slug.join('/')}`;
+  const data = await fetch(
+    `${env.NEXT_PUBLIC_BASE_URL}/api/page-content?path=${path}`,
+    { next: { tags: ['page_title'] }, cache: 'force-cache' }
+  ).then((res) => res.json());
+
+  if (data.error == 'Page not found') {
+    return {
+      title: 'Not found!',
+      description: 'The page you are looking for does not exist.',
+    };
+  }
 
   return {
-    title: getPage(path)?.root.props?.title,
+    title: (data as Data)?.root?.props?.title,
   };
 }
 
@@ -23,11 +43,15 @@ export default async function Page({
 }) {
   const { slug = [] } = await params;
   const path = `/${slug.join('/')}`;
-  const data = getPage(path);
 
-  if (!data) {
+  if (slug[0] == 'page-not-found') {
     return notFound();
   }
+
+  const data = fetch(
+    `${env.NEXT_PUBLIC_BASE_URL}/api/page-content?path=${path}`,
+    { cache: 'no-store' }
+  ).then((res) => res.json());
 
   return <Client data={data} />;
 }

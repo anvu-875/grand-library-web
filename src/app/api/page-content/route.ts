@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import { Data } from '@measured/puck';
@@ -16,7 +16,12 @@ export async function GET(request: NextRequest) {
   const data = allData ? allData[path] : null;
 
   if (!data) {
-    return new Response('Not found', { status: 404 });
+    return new Response(JSON.stringify({ error: 'Page not found' }), {
+      status: 404,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 
   await new Promise((res) => setTimeout(res, 3000));
@@ -42,5 +47,11 @@ export async function POST(request: Request) {
   // Purge Next.js cache
   revalidatePath(payload.path);
 
-  return NextResponse.json({ status: 'ok' });
+  revalidateTag('page_title');
+
+  return NextResponse.json({
+    status: 'ok',
+    message: 'Page content updated successfully',
+    path: payload.path,
+  });
 }
