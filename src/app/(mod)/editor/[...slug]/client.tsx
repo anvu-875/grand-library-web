@@ -14,7 +14,7 @@ export function Client({
   data,
 }: {
   path: string;
-  data: Promise<Partial<Data>>;
+  data: Promise<Partial<Data> | null>;
 }) {
   const pdata = use(data);
   const router = useRouter();
@@ -23,7 +23,7 @@ export function Client({
   return (
     <Puck
       config={config}
-      data={pdata}
+      data={pdata || {}}
       onPublish={async (data) => {
         await fetch('/api/page-content', {
           method: 'post',

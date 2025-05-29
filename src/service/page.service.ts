@@ -13,9 +13,13 @@ export default class PageService {
     return PageService.instance;
   }
 
-  getPage(path: string) {
-    const allData: Record<string, Data> | null = fs.existsSync('database.json')
-      ? JSON.parse(fs.readFileSync('database.json', 'utf-8'))
+  async getPage(path: string) {
+    const exists = await fs.promises.access('database.json')
+      .then(() => true)
+      .catch(() => false);
+
+    const allData: Record<string, Partial<Data>> | null = exists
+      ? JSON.parse(await fs.promises.readFile('database.json', 'utf-8'))
       : null;
 
     const data = allData ? allData[path] : null;
@@ -23,10 +27,14 @@ export default class PageService {
     return data;
   }
 
-  updatePage(path: string, data: Data) {
+  async updatePage(path: string, data: Data) {
+    const exists = await fs.promises.access('database.json')
+      .then(() => true)
+      .catch(() => false);
+
     const existingData = JSON.parse(
-      fs.existsSync('database.json')
-        ? fs.readFileSync('database.json', 'utf-8')
+      exists
+        ? await fs.promises.readFile('database.json', 'utf-8')
         : '{}'
     );
 
@@ -35,6 +43,6 @@ export default class PageService {
       [path]: data,
     };
 
-    fs.writeFileSync('database.json', JSON.stringify(updatedData));
+    await fs.promises.writeFile('database.json', JSON.stringify(updatedData));
   }
 }

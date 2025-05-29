@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     return new Response('Path parameter is required', { status: 400 });
   }
 
-  const data = pageService.getPage(path);
+  const data = await pageService.getPage(path);
 
   if (!data) {
     return new Response(JSON.stringify({ error: 'Page not found' }), {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   const payload = await request.json();
 
-  pageService.updatePage(payload.path, payload.data);
+  await pageService.updatePage(payload.path, payload.data);
 
   // Purge Next.js cache
   revalidatePath(payload.path);
