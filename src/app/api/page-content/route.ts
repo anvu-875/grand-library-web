@@ -1,7 +1,8 @@
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import { Data } from '@measured/puck';
+import PageService from '@/service/page.service';
+
+const pageService = PageService.getInstance();
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -10,10 +11,7 @@ export async function GET(request: NextRequest) {
     return new Response('Path parameter is required', { status: 400 });
   }
 
-  const allData: Record<string, Data> | null = fs.existsSync('database.json')
-    ? JSON.parse(fs.readFileSync('database.json', 'utf-8'))
-    : null;
-  const data = allData ? allData[path] : null;
+  const data = await pageService.getPage(path);
 
   if (!data) {
     return new Response(JSON.stringify({ error: 'Page not found' }), {
@@ -31,18 +29,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   const payload = await request.json();
 
-  const existingData = JSON.parse(
-    fs.existsSync('database.json')
-      ? fs.readFileSync('database.json', 'utf-8')
-      : '{}'
-  );
-
-  const updatedData = {
-    ...existingData,
-    [payload.path]: payload.data,
-  };
-
-  fs.writeFileSync('database.json', JSON.stringify(updatedData));
+  await pageService.updatePage(payload.path, payload.data);
 
   // Purge Next.js cache
   revalidatePath(payload.path);

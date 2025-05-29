@@ -15,7 +15,9 @@ import '@measured/puck/puck.css';
 import '@/styles/puck-overrides.css';
 import { Client } from './client';
 import { Metadata } from 'next';
-import { env } from '@/lib/env';
+import PageService from '@/service/page.service';
+
+const pageService = PageService.getInstance();
 
 export async function generateMetadata({
   params,
@@ -26,7 +28,7 @@ export async function generateMetadata({
   const path = `/${slug.join('/')}`;
 
   return {
-    title: 'Puck: ' + path,
+    title: path,
   };
 }
 
@@ -37,12 +39,10 @@ export default async function Page({
 }) {
   const { slug = [] } = await params;
   const path = `/${slug.join('/')}`;
-  const data = fetch(
-    `${env.NEXT_PUBLIC_BASE_URL}/api/page-content?path=${path}`,
-    { cache: 'no-store' }
-  ).then((res) => res.json());
 
-  return <Client path={path} data={data || {}} />;
+  const dataPromise = pageService.getPage(path);
+
+  return <Client path={path} data={dataPromise} />;
 }
 
 export const dynamic = 'force-dynamic';
