@@ -14,7 +14,8 @@ export default class PageService {
   }
 
   async getPage(path: string) {
-    const exists = await fs.promises.access('database.json')
+    const exists = await fs.promises
+      .access('database.json')
       .then(() => true)
       .catch(() => false);
 
@@ -28,14 +29,13 @@ export default class PageService {
   }
 
   async updatePage(path: string, data: Data) {
-    const exists = await fs.promises.access('database.json')
+    const exists = await fs.promises
+      .access('database.json')
       .then(() => true)
       .catch(() => false);
 
     const existingData = JSON.parse(
-      exists
-        ? await fs.promises.readFile('database.json', 'utf-8')
-        : '{}'
+      exists ? await fs.promises.readFile('database.json', 'utf-8') : '{}'
     );
 
     const updatedData = {

@@ -33,7 +33,9 @@ CREATE TABLE "users" (
 	"name" varchar(100) NOT NULL,
 	"email" varchar(255) NOT NULL,
 	"role" "user_role" NOT NULL,
-	"join" timestamp DEFAULT now() NOT NULL,
+	"password_hash" varchar(255) NOT NULL,
+	"password_salt" varchar(255) NOT NULL,
+	"join_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
