@@ -8,15 +8,19 @@ import {
 } from 'drizzle-orm/pg-core';
 
 // Define Role Enum
-export const userRoleEnum = pgEnum('user_role', ['admin', 'mod']);
+export const userRoles = ['admin', 'mod'] as const;
+export type UserRole = 'admin' | 'mod';
+export const userRoleEnum = pgEnum('user_role', userRoles);
 
 // Users Table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 100 }).notNull(),
+  userName: varchar('user_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   role: userRoleEnum('role').notNull(),
-  joinAt: timestamp('join').defaultNow().notNull(),
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  passwordSalt: varchar('password_salt', { length: 255 }).notNull(),
+  joinAt: timestamp('join_at').defaultNow().notNull(),
 });
 
 // Games Table

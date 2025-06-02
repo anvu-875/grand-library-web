@@ -1,8 +1,8 @@
 import { Client } from './client';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
-import { env } from '@/lib/env';
 import { Data } from '@measured/puck';
+import PageService from '@/service/page.service';
 
 export async function generateMetadata({
   params,
@@ -19,12 +19,9 @@ export async function generateMetadata({
   }
 
   const path = `/${slug.join('/')}`;
-  const data = await fetch(
-    `${env.NEXT_PUBLIC_BASE_URL}/api/page-content?path=${path}`,
-    { next: { tags: ['page_title'] }, cache: 'force-cache' }
-  ).then((res) => res.json());
+  const data = await PageService.getInstance().getPage(path);
 
-  if (data.error == 'Page not found') {
+  if (!data) {
     return {
       title: 'Not found!',
       description: 'The page you are looking for does not exist.',
@@ -48,14 +45,11 @@ export default async function Page({
     return notFound();
   }
 
-  const data = fetch(
-    `${env.NEXT_PUBLIC_BASE_URL}/api/page-content?path=${path}`,
-    { cache: 'no-store' }
-  ).then((res) => res.json());
+  const data = PageService.getInstance().getPage(path);
 
   return <Client data={data} />;
 }
 
 // Force Next.js to produce static pages: https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamic
 // Delete this if you need dynamic rendering, such as access to headers or cookies
-export const dynamic = 'force-static';
+// export const dynamic = 'force-static';
