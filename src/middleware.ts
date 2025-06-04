@@ -1,29 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import SessionService from './service/session.service';
+import { cookies } from 'next/headers';
+import { Cookies } from './lib/type';
 
-export function middleware(request: NextRequest) {
-  // Get the pathname from the URL
+const modRoutes: string[] = [];
+const adminRoutes: string[] = [];
+
+export async function middleware(request: NextRequest) {
   const _pathname = request.nextUrl.pathname;
 
-  // Add basic security headers to all responses
-  const response = NextResponse.next();
+  // Reset session token expiration for each request
+  // This is to ensure that the session remains active as long as the user is interacting with the site
+  const cookiesStore = await cookies();
+  await SessionService.getInstance().updateUserSessionExpiration(cookiesStore);
 
-  // Security headers
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=()'
-  );
-
-  // Add Content-Security-Policy in production
-  if (process.env.NODE_ENV === 'production') {
-    response.headers.set(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;"
-    );
-  }
+  // Check authentication for mod and admin routes
+  const response =
+    (await middlewareAuth(request, cookiesStore)) ?? NextResponse.next();
 
   if (request.method === 'GET') {
     // Rewrite routes that match "/[...slug]/edit" to "/editor/[...slug]"
@@ -46,17 +39,33 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-// Configure which paths the middleware should run on
+async function middlewareAuth(request: NextRequest, cookiesStore: Cookies) {
+  if (modRoutes.includes(request.nextUrl.pathname)) {
+    const user =
+      await SessionService.getInstance().getUserFromSession(cookiesStore);
+    if (user == null) {
+      return NextResponse.redirect(new URL('/signin', request.url));
+    }
+    if (user.role !== 'mod') {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
+
+  if (adminRoutes.includes(request.nextUrl.pathname)) {
+    const user =
+      await SessionService.getInstance().getUserFromSession(cookiesStore);
+    if (user == null) {
+      return NextResponse.redirect(new URL('/signin', request.url));
+    }
+    if (user.role !== 'admin') {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
+}
+
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.png$).*)',
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
   ],
 };
