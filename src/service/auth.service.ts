@@ -1,6 +1,6 @@
 import z from 'zod';
 import UserService from './user.service';
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import SessionService from './session.service';
 import { Cookies } from '@/lib/type';
 
@@ -21,29 +21,38 @@ export default class AuthService {
     return AuthService.instance;
   }
 
-  static hashPassword(password: string, salt: string): Promise<string> {
+  static hashPassword(password: string): Promise<string> {
+    const saltRounds = 12;
     return new Promise((resolve, reject) => {
-      crypto.scrypt(password.normalize(), salt, 64, (err, hash) => {
-        if (err) reject(err);
-        resolve(hash.toString('hex').normalize());
+      bcrypt.hash(password, saltRounds, (err, hash) => {
+        if (err) {
+          reject(err);
+        } else {
+          hash ? resolve(hash) : reject(new Error('Hashing failed'));
+        }
       });
     });
   }
 
-  static generateSalt() {
-    return crypto.randomBytes(16).toString('hex');
+  static isPasswordTooLong(password: string) {
+    return bcrypt.truncates(password);
   }
 
-  static async comparePasswords(
+  static comparePasswords(
     password: string,
-    salt: string,
     hashedPassword: string
-  ) {
-    const inputHashedPw = await AuthService.hashPassword(password, salt);
-    return crypto.timingSafeEqual(
-      Buffer.from(inputHashedPw, 'hex'),
-      Buffer.from(hashedPassword, 'hex')
-    );
+  ): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      bcrypt.compare(password, hashedPassword, (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          result
+            ? resolve(result)
+            : reject(new Error('Password comparison failed'));
+        }
+      });
+    });
   }
 
   async signIn(
@@ -60,16 +69,22 @@ export default class AuthService {
       throw new Error('User not found');
     }
 
-    const isCorrectPassword = await AuthService.comparePasswords(
-      data.password,
-      user.passwordSalt,
-      user.passwordHash
-    );
-
-    if (!isCorrectPassword) {
-      throw new Error('Wrong password');
+    try {
+      const isCorrectPassword = await AuthService.comparePasswords(
+        data.password,
+        user.passwordHash
+      );
+      if (!isCorrectPassword) {
+        throw new Error('Wrong password');
+      }
+    } catch (error) {
+      throw new Error('Password comparison failed: ' + (error as any)?.message);
     }
 
     await SessionService.getInstance().createUserSession(user, cookiesStore);
+  }
+
+  async logOut(cookiesStore: Cookies) {
+    await SessionService.getInstance().removeUserFromSession(cookiesStore);
   }
 }

@@ -31,6 +31,7 @@ const eslintConfig = [
       '@typescript-eslint/no-explicit-any': 'off',
       'import/no-anonymous-default-export': 'off',
       '@next/next/no-img-element': 'off',
+      '@next/next/no-html-link-for-pages': 'off',
     },
   }),
 ];
