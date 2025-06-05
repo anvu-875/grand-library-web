@@ -19,7 +19,6 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   role: userRoleEnum('role').notNull(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
-  passwordSalt: varchar('password_salt', { length: 255 }).notNull(),
   joinAt: timestamp('join_at').defaultNow().notNull(),
 });
 

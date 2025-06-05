@@ -37,8 +37,7 @@ export default class UserService {
     email: string,
     userName: string,
     role: (typeof users.$inferInsert)['role'],
-    passwordHash: string,
-    passwordSalt: string
+    passwordHash: string
   ) {
     const [user] = await db
       .insert(users)
@@ -47,7 +46,6 @@ export default class UserService {
         userName,
         role,
         passwordHash,
-        passwordSalt,
       })
       .returning({ id: users.id, role: users.role });
 
@@ -82,15 +80,13 @@ export default class UserService {
     }
 
     try {
-      const salt = AuthService.generateSalt();
-      const passwordHash = await AuthService.hashPassword(data.password, salt);
+      const passwordHash = await AuthService.hashPassword(data.password);
 
       const user = await this.createUser(
         data.email,
         data.userName,
         role,
-        passwordHash,
-        salt
+        passwordHash
       );
 
       if (user == null) {

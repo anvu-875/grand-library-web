@@ -1,6 +1,6 @@
 import { userRoles } from '@/data-storage/schema';
 import { z } from 'zod';
-import crypto from 'crypto';
+import uid from 'uid-safe';
 import redisClient from '@/data-storage/redis';
 import { Cookies } from '@/lib/type';
 
@@ -26,7 +26,7 @@ export default class SessionService {
     return SessionService.instance;
   }
 
-  async getUserSessionbyId(sessionId: string) {
+  async getUserSessionById(sessionId: string) {
     const rawUser = await redisClient.get(`session:${sessionId}`);
     const { success, data: user } = sessionSchema.safeParse(rawUser);
     return success ? user : null;
@@ -36,7 +36,7 @@ export default class SessionService {
     const sessionId = cookiesStore.get(COOKIE_SESSION_KEY)?.value;
     if (!sessionId) return null;
 
-    return this.getUserSessionbyId(sessionId);
+    return this.getUserSessionById(sessionId);
   }
 
   async removeUserFromSession(cookiesStore: Pick<Cookies, 'get' | 'delete'>) {
@@ -56,15 +56,35 @@ export default class SessionService {
     });
   }
 
+  private async setSession(sessionId: string, user: UserSession) {
+    return await redisClient.set(
+      `session:${sessionId}`,
+      sessionSchema.parse(user),
+      {
+        ex: SESSION_EXPIRATION_SECONDS,
+      }
+    );
+  }
+
   async createUserSession(
     user: UserSession,
     cookiesStore: Pick<Cookies, 'set'>
   ) {
-    const sessionId = crypto.randomBytes(512).toString('hex').normalize();
-    await redisClient.set(`session:${sessionId}`, sessionSchema.parse(user), {
-      ex: SESSION_EXPIRATION_SECONDS,
-    });
+    const sessionId = uid.sync(18);
+    await this.setSession(sessionId, user);
+    this.setCookie(sessionId, cookiesStore);
+  }
 
+  async updateUserSessionExpiration(
+    cookiesStore: Pick<Cookies, 'get' | 'set'>
+  ) {
+    const sessionId = cookiesStore.get(COOKIE_SESSION_KEY)?.value;
+    if (sessionId == null) return null;
+
+    const user = await this.getUserSessionById(sessionId);
+    if (user == null) return;
+
+    await this.setSession(sessionId, user);
     this.setCookie(sessionId, cookiesStore);
   }
 }
