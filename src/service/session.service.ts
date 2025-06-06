@@ -6,6 +6,7 @@ import { Cookies } from '@/lib/type';
 
 const SESSION_EXPIRATION_SECONDS = 60 * 60 * 24 * 7;
 const COOKIE_SESSION_KEY = 'session_id';
+const genSessionTag = (sessionId: string) => `session:${sessionId}`;
 
 const sessionSchema = z.object({
   id: z.string(),
@@ -27,7 +28,7 @@ export default class SessionService {
   }
 
   async getUserSessionById(sessionId: string) {
-    const rawUser = await redisClient.get(`session:${sessionId}`);
+    const rawUser = await redisClient.get(genSessionTag(sessionId));
     const { success, data: user } = sessionSchema.safeParse(rawUser);
     return success ? user : null;
   }
@@ -43,8 +44,8 @@ export default class SessionService {
     const sessionId = cookiesStore.get(COOKIE_SESSION_KEY)?.value;
     if (!sessionId) return null;
 
-    await redisClient.del(`session:${sessionId}`);
     cookiesStore.delete(COOKIE_SESSION_KEY);
+    await redisClient.del(genSessionTag(sessionId));
   }
 
   private setCookie(sessionId: string, cookiesStore: Pick<Cookies, 'set'>) {
@@ -58,7 +59,7 @@ export default class SessionService {
 
   private async setSession(sessionId: string, user: UserSession) {
     return await redisClient.set(
-      `session:${sessionId}`,
+      genSessionTag(sessionId),
       sessionSchema.parse(user),
       {
         ex: SESSION_EXPIRATION_SECONDS,
@@ -71,8 +72,8 @@ export default class SessionService {
     cookiesStore: Pick<Cookies, 'set'>
   ) {
     const sessionId = uid.sync(18);
-    await this.setSession(sessionId, user);
     this.setCookie(sessionId, cookiesStore);
+    await this.setSession(sessionId, user);
   }
 
   async updateUserSessionExpiration(
@@ -84,7 +85,7 @@ export default class SessionService {
     const user = await this.getUserSessionById(sessionId);
     if (user == null) return;
 
-    await this.setSession(sessionId, user);
     this.setCookie(sessionId, cookiesStore);
+    await this.setSession(sessionId, user);
   }
 }

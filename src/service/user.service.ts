@@ -5,11 +5,22 @@ import { z } from 'zod';
 import AuthService from './auth.service';
 import { Cookies } from '@/lib/type';
 import SessionService from './session.service';
+import {
+  createError,
+  createServiceReturn,
+  ErrorCode,
+  ServiceReturn,
+} from '@/lib/serviceReturn';
 
 const createdUserSchema = z.object({
-  email: z.string().email(),
-  userName: z.string().min(1),
-  password: z.string().min(8),
+  email: z.string().email('Invalid email format'),
+  userName: z.string().min(1, { message: 'User name is required' }),
+  password: z
+    .string()
+    .min(6, { message: 'Password must be at least 6 characters long' })
+    .refine((value) => !AuthService.isPasswordTooLong(value), {
+      message: 'Password is too long',
+    }),
 });
 
 export default class UserService {
@@ -33,12 +44,17 @@ export default class UserService {
     return user;
   }
 
-  private async createUser(
-    email: string,
-    userName: string,
-    role: (typeof users.$inferInsert)['role'],
-    passwordHash: string
-  ) {
+  private async createUser({
+    email,
+    userName,
+    role,
+    passwordHash,
+  }: {
+    email: string;
+    userName: string;
+    role: UserRole;
+    passwordHash: string;
+  }) {
     const [user] = await db
       .insert(users)
       .values({
@@ -47,7 +63,12 @@ export default class UserService {
         role,
         passwordHash,
       })
-      .returning({ id: users.id, role: users.role });
+      .returning({
+        id: users.id,
+        userName: users.userName,
+        email: users.email,
+        role: users.role,
+      });
 
     return user;
   }
@@ -56,47 +77,101 @@ export default class UserService {
     unsafeCredentials: z.infer<typeof createdUserSchema>,
     role: UserRole,
     cookiesStore: Cookies
-  ) {
+  ): Promise<
+    ServiceReturn<{
+      id: string;
+      email: string;
+      userName: string;
+      role: UserRole;
+    }>
+  > {
     const adminUser =
       await SessionService.getInstance().getUserFromSession(cookiesStore);
 
     if (!adminUser) {
-      throw new Error('Unauthorized: Admin authentication required');
+      return createServiceReturn({
+        error: createError({
+          code: ErrorCode.UNAUTHORIZED,
+          message: 'Unauthorized: No user session found',
+        }),
+      });
     }
 
     if (adminUser.role != 'admin') {
-      throw new Error('Unauthorized: User is not an admin');
+      return createServiceReturn({
+        error: createError({
+          code: ErrorCode.FORBIDDEN,
+          message: 'Forbidden: Only admins can create users',
+        }),
+      });
     }
 
-    const { success, data } = createdUserSchema.safeParse(unsafeCredentials);
+    const { success, error, data } =
+      createdUserSchema.safeParse(unsafeCredentials);
     if (!success) {
-      throw new Error('Invalid credentials');
+      const errorArr: ReturnType<typeof createError>[] = [];
+      if (error.formErrors.fieldErrors.email) {
+        errorArr.push(
+          createError({
+            message: error.formErrors.fieldErrors.email,
+            code: ErrorCode.UNPROCESSABLE_ENTITY,
+          })
+        );
+      }
+      if (error.formErrors.fieldErrors.userName) {
+        errorArr.push(
+          createError({
+            message: error.formErrors.fieldErrors.userName,
+            code: ErrorCode.UNPROCESSABLE_ENTITY,
+          })
+        );
+      }
+      if (error.formErrors.fieldErrors.password) {
+        errorArr.push(
+          createError({
+            message: error.formErrors.fieldErrors.password,
+            code: ErrorCode.UNPROCESSABLE_ENTITY,
+          })
+        );
+      }
+      return createServiceReturn({
+        error: errorArr,
+      });
     }
 
     const user = await this.getUserByEmail(data.email);
 
     if (user) {
-      throw new Error(`User already exists (${data.email}-${user.role})`);
+      return createServiceReturn({
+        error: createError({
+          message: 'User with this email already exists',
+          code: ErrorCode.CONFLICT_DATA,
+        }),
+      });
     }
 
     try {
       const passwordHash = await AuthService.hashPassword(data.password);
 
-      const user = await this.createUser(
-        data.email,
-        data.userName,
+      const user = await this.createUser({
+        email: data.email,
+        userName: data.userName,
         role,
-        passwordHash
-      );
+        passwordHash,
+      });
 
-      if (user == null) {
-        throw new Error('Unable to create account');
-      }
-
-      return user;
+      return createServiceReturn({
+        data: user,
+        status: 201, // HttpStatusCode.CREATED
+      });
     } catch (error) {
       console.error(error);
-      throw new Error('Unable to create account');
+      return createServiceReturn({
+        error: createError({
+          message: 'Failed to create user',
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+        }),
+      });
     }
   }
 }

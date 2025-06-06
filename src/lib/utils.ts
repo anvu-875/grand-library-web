@@ -7,3 +7,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const getFakeUserName = () => faker.internet.username();
+
+export function isPasswordTooLong(password: string): boolean {
+  const encoder = new TextEncoder();
+  const byteLength = encoder.encode(password).length;
+  return byteLength > 72;
+}

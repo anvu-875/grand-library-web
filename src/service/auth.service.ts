@@ -3,10 +3,17 @@ import UserService from './user.service';
 import bcrypt from 'bcryptjs';
 import SessionService from './session.service';
 import { Cookies } from '@/lib/type';
+import {
+  createError,
+  createServiceReturn,
+  ErrorCode,
+  ServiceReturn,
+} from '@/lib/serviceReturn';
+import { UserRole } from '@/data-storage/schema';
 
 const signInSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  email: z.string().email('Invalid email format'),
+  password: z.string().nonempty('Password is required'),
 });
 
 export default class AuthService {
@@ -44,10 +51,11 @@ export default class AuthService {
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
       bcrypt.compare(password, hashedPassword, (err, result) => {
+        console.log(err, result);
         if (err) {
           reject(err);
         } else {
-          result
+          typeof result === 'boolean'
             ? resolve(result)
             : reject(new Error('Password comparison failed'));
         }
@@ -58,15 +66,46 @@ export default class AuthService {
   async signIn(
     unsafeCredentials: z.infer<typeof signInSchema>,
     cookiesStore: Cookies
-  ) {
-    const { success, data } = signInSchema.safeParse(unsafeCredentials);
+  ): Promise<
+    ServiceReturn<{
+      id: string;
+      email: string;
+      userName: string;
+      role: UserRole;
+    }>
+  > {
+    const { success, error, data } = signInSchema.safeParse(unsafeCredentials);
     if (!success) {
-      throw new Error('Invalid credentials');
+      const errorArr: ReturnType<typeof createError>[] = [];
+      if (error.formErrors.fieldErrors.email) {
+        errorArr.push(
+          createError({
+            message: error.formErrors.fieldErrors.email,
+            code: ErrorCode.UNPROCESSABLE_ENTITY,
+          })
+        );
+      }
+      if (error.formErrors.fieldErrors.password) {
+        errorArr.push(
+          createError({
+            message: error.formErrors.fieldErrors.password,
+            code: ErrorCode.UNPROCESSABLE_ENTITY,
+          })
+        );
+      }
+      return createServiceReturn({
+        error: errorArr,
+      });
     }
 
     const user = await UserService.getInstance().getUserByEmail(data.email);
     if (!user) {
-      throw new Error('User not found');
+      return createServiceReturn({
+        error: createError({
+          message: 'User not found',
+          code: ErrorCode.UNAUTHORIZED,
+        }),
+      });
     }
 
     try {
@@ -75,13 +114,33 @@ export default class AuthService {
         user.passwordHash
       );
       if (!isCorrectPassword) {
-        throw new Error('Wrong password');
+        return createServiceReturn({
+          error: createError({
+            message: 'Incorrect password',
+            code: ErrorCode.UNAUTHORIZED,
+          }),
+        });
       }
-    } catch (error) {
-      throw new Error('Password comparison failed: ' + (error as any)?.message);
+    } catch {
+      console.error('Password comparison error');
+      return createServiceReturn({
+        error: createError({
+          message: 'Password comparison error',
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+        }),
+      });
     }
 
     await SessionService.getInstance().createUserSession(user, cookiesStore);
+    return createServiceReturn({
+      data: {
+        id: user.id,
+        email: user.email,
+        userName: user.userName,
+        role: user.role,
+      },
+      status: 200,
+    });
   }
 
   async logOut(cookiesStore: Cookies) {
