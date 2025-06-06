@@ -20,7 +20,12 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant='outline' className='group/toggle h-8 w-8 px-0' disabled>
+      <Button
+        type='button'
+        variant='outline'
+        className='group/toggle h-8 w-8 px-0'
+        disabled
+      >
         <span className='sr-only'>Loading theme</span>
       </Button>
     );
@@ -28,6 +33,7 @@ export function ThemeToggle() {
 
   return (
     <Button
+      type='button'
       variant='outline'
       className='group/toggle h-8 w-8 px-0'
       onClick={toggleTheme}
