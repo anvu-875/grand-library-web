@@ -151,9 +151,8 @@ export default function SignInPage() {
           </Button>
           <Separator className='my-4' />
           <div className='text-center text-sm text-gray-500'>
-            Don&apos;t have an account?{' '}
             <a href='/signup' className='underline'>
-              Sign up
+              Sign up with Google
             </a>
           </div>
         </CardFooter>
