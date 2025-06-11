@@ -1,21 +1,28 @@
 'use server';
 
+import { ErrorObj } from '@/lib/serviceReturn';
 import AuthService from '@/service/auth.service';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
-export async function signInAction(formData: FormData) {
-  const email = formData.get('email')?.toString();
-  const password = formData.get('password')?.toString();
+export async function signInAction(
+  _formState: ErrorObj<Record<string, any>> | undefined,
+  formData: FormData
+) {
+  const email = formData.get('email')?.toString() ?? '';
+  const password = formData.get('password')?.toString() ?? '';
   const cookiesStore = await cookies();
 
-  if (!email || !password) {
-    throw new Error('Email and password are required');
+  const res = await AuthService.getInstance().signIn(
+    { email, password },
+    cookiesStore
+  );
+
+  console.log(JSON.stringify(res));
+
+  if (res.success || !res.error) {
+    redirect('/');
   }
 
-  try {
-    await AuthService.getInstance().signIn({ email, password }, cookiesStore);
-  } catch (error) {
-    console.error(`Sign-in error.
-message: ${(error as Error).message}`);
-  }
+  return res.error;
 }

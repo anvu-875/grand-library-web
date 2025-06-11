@@ -11,17 +11,7 @@ import {
   ErrorCode,
   ServiceReturn,
 } from '@/lib/serviceReturn';
-
-const createdUserSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  userName: z.string().min(1, { message: 'User name is required' }),
-  password: z
-    .string()
-    .min(6, { message: 'Password must be at least 6 characters long' })
-    .refine((value) => !AuthService.isPasswordTooLong(value), {
-      message: 'Password is too long',
-    }),
-});
+import { createdUserSchema } from '@/lib/schema-validation';
 
 export default class UserService {
   private static instance: UserService | null = null;
@@ -42,6 +32,43 @@ export default class UserService {
     });
 
     return user;
+  }
+
+  async getFullUserById<H extends boolean | undefined = undefined>(
+    id: string,
+    hash?: H
+  ): Promise<
+    H extends true
+      ? {
+          id: string;
+          userName: string;
+          email: string;
+          role: UserRole;
+          passwordHash: string;
+          joinAt: Date;
+        }
+      : {
+          id: string;
+          userName: string;
+          email: string;
+          role: UserRole;
+          joinAt: Date;
+        } | null
+  >;
+  async getFullUserById(id: string, hash: boolean = false) {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, id),
+      with: {
+        passwordHash: hash,
+      },
+    });
+    if (!user) return null;
+
+    const { passwordHash, joinAt, email, id: uid, userName, role } = user;
+    if (hash) {
+      return { id: uid, userName, email, role, passwordHash, joinAt };
+    }
+    return { id: uid, userName, email, role, joinAt };
   }
 
   private async createUser({
@@ -78,12 +105,20 @@ export default class UserService {
     role: UserRole,
     cookiesStore: Cookies
   ): Promise<
-    ServiceReturn<{
-      id: string;
-      email: string;
-      userName: string;
-      role: UserRole;
-    }>
+    ServiceReturn<
+      {
+        id: string;
+        email: string;
+        userName: string;
+        role: UserRole;
+      },
+      {
+        email?: string[];
+        userName?: string[];
+        password?: string[];
+        message?: string;
+      }
+    >
   > {
     const adminUser =
       await SessionService.getInstance().getUserFromSession(cookiesStore);
@@ -92,7 +127,9 @@ export default class UserService {
       return createServiceReturn({
         error: createError({
           code: ErrorCode.UNAUTHORIZED,
-          message: 'Unauthorized: No user session found',
+          content: {
+            message: 'Unauthorized: Please log in as an admin',
+          },
         }),
       });
     }
@@ -101,7 +138,9 @@ export default class UserService {
       return createServiceReturn({
         error: createError({
           code: ErrorCode.FORBIDDEN,
-          message: 'Forbidden: Only admins can create users',
+          content: {
+            message: 'Forbidden: Only admins can create users',
+          },
         }),
       });
     }
@@ -109,33 +148,11 @@ export default class UserService {
     const { success, error, data } =
       createdUserSchema.safeParse(unsafeCredentials);
     if (!success) {
-      const errorArr: ReturnType<typeof createError>[] = [];
-      if (error.formErrors.fieldErrors.email) {
-        errorArr.push(
-          createError({
-            message: error.formErrors.fieldErrors.email,
-            code: ErrorCode.UNPROCESSABLE_ENTITY,
-          })
-        );
-      }
-      if (error.formErrors.fieldErrors.userName) {
-        errorArr.push(
-          createError({
-            message: error.formErrors.fieldErrors.userName,
-            code: ErrorCode.UNPROCESSABLE_ENTITY,
-          })
-        );
-      }
-      if (error.formErrors.fieldErrors.password) {
-        errorArr.push(
-          createError({
-            message: error.formErrors.fieldErrors.password,
-            code: ErrorCode.UNPROCESSABLE_ENTITY,
-          })
-        );
-      }
       return createServiceReturn({
-        error: errorArr,
+        error: createError({
+          code: ErrorCode.UNPROCESSABLE_ENTITY,
+          content: error.flatten().fieldErrors,
+        }),
       });
     }
 
@@ -144,8 +161,11 @@ export default class UserService {
     if (user) {
       return createServiceReturn({
         error: createError({
-          message: 'User with this email already exists',
-          code: ErrorCode.CONFLICT_DATA,
+          code: ErrorCode.EXISTING_DATA,
+          content: {
+            message: 'User with this email already exists',
+            email: ['Email is already in use'],
+          },
         }),
       });
     }
@@ -168,8 +188,10 @@ export default class UserService {
       console.error(error);
       return createServiceReturn({
         error: createError({
-          message: 'Failed to create user',
           code: ErrorCode.INTERNAL_SERVER_ERROR,
+          content: {
+            message: 'Failed to create user',
+          },
         }),
       });
     }
