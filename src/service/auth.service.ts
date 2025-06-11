@@ -10,11 +10,7 @@ import {
   ServiceReturn,
 } from '@/lib/serviceReturn';
 import { UserRole } from '@/data-storage/schema';
-
-const signInSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().nonempty('Password is required'),
-});
+import { signInSchema } from '@/lib/schema-validation';
 
 export default class AuthService {
   private static instance: AuthService | null = null;
@@ -51,7 +47,6 @@ export default class AuthService {
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
       bcrypt.compare(password, hashedPassword, (err, result) => {
-        console.log(err, result);
         if (err) {
           reject(err);
         } else {
@@ -64,37 +59,30 @@ export default class AuthService {
   }
 
   async signIn(
-    unsafeCredentials: z.infer<typeof signInSchema>,
+    unsafeCredentials: Partial<z.infer<typeof signInSchema>>,
     cookiesStore: Cookies
   ): Promise<
-    ServiceReturn<{
-      id: string;
-      email: string;
-      userName: string;
-      role: UserRole;
-    }>
+    ServiceReturn<
+      {
+        id: string;
+        email: string;
+        userName: string;
+        role: UserRole;
+      },
+      {
+        email?: string[];
+        password?: string[];
+        message?: string;
+      }
+    >
   > {
     const { success, error, data } = signInSchema.safeParse(unsafeCredentials);
     if (!success) {
-      const errorArr: ReturnType<typeof createError>[] = [];
-      if (error.formErrors.fieldErrors.email) {
-        errorArr.push(
-          createError({
-            message: error.formErrors.fieldErrors.email,
-            code: ErrorCode.UNPROCESSABLE_ENTITY,
-          })
-        );
-      }
-      if (error.formErrors.fieldErrors.password) {
-        errorArr.push(
-          createError({
-            message: error.formErrors.fieldErrors.password,
-            code: ErrorCode.UNPROCESSABLE_ENTITY,
-          })
-        );
-      }
       return createServiceReturn({
-        error: errorArr,
+        error: createError({
+          content: error.flatten().fieldErrors,
+          code: ErrorCode.UNPROCESSABLE_ENTITY,
+        }),
       });
     }
 
@@ -102,7 +90,9 @@ export default class AuthService {
     if (!user) {
       return createServiceReturn({
         error: createError({
-          message: 'User not found',
+          content: {
+            message: 'Email or password is incorrect',
+          },
           code: ErrorCode.UNAUTHORIZED,
         }),
       });
@@ -116,16 +106,19 @@ export default class AuthService {
       if (!isCorrectPassword) {
         return createServiceReturn({
           error: createError({
-            message: 'Incorrect password',
+            content: {
+              message: 'Email or password is incorrect',
+            },
             code: ErrorCode.UNAUTHORIZED,
           }),
         });
       }
     } catch {
-      console.error('Password comparison error');
       return createServiceReturn({
         error: createError({
-          message: 'Password comparison error',
+          content: {
+            message: 'Error comparing passwords',
+          },
           code: ErrorCode.INTERNAL_SERVER_ERROR,
         }),
       });

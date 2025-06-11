@@ -44,10 +44,10 @@ export const errorCodeToStatus: Record<ErrorCode, HttpStatusCode> = {
 };
 
 // 4. Define Error Object Structure
-export type ErrorObj = {
-  message: string | string[];
+export type ErrorObj<T> = {
   code: ErrorCode;
   status: HttpStatusCode;
+  content: T;
 };
 
 // 5. Function to Get Status from Error Code
@@ -56,36 +56,35 @@ export function getStatusFromErrorCode(code: ErrorCode): HttpStatusCode {
 }
 
 // 6. Define Service Return Type
-export type ServiceReturn<T> = {
+export type ServiceReturn<T, V> = {
   success: boolean;
   status: HttpStatusCode;
-  error?: ErrorObj | ErrorObj[];
+  error?: ErrorObj<V>;
   data: T | null;
 };
 
 // 7. Overloaded Function to Create Service Return
 
 // Overload for successful response
-export function createServiceReturn<T>(params: {
+export function createServiceReturn<T, V>(params: {
   data: T;
   status?: HttpStatusCode.OK | HttpStatusCode.CREATED;
-}): ServiceReturn<T>;
+}): ServiceReturn<T, V>;
 
 // Overload for error response
-export function createServiceReturn<T>(params: {
-  error: ErrorObj | ErrorObj[];
-}): ServiceReturn<T>;
+export function createServiceReturn<T, V>(params: {
+  error: ErrorObj<V>;
+}): ServiceReturn<T, V>;
 
 // Implementation
-export function createServiceReturn<T>(params: {
+export function createServiceReturn<T, V>(params: {
   data?: T;
   status?: HttpStatusCode;
-  error?: ErrorObj | ErrorObj[];
-}): ServiceReturn<T> {
+  error?: ErrorObj<V>;
+}): ServiceReturn<T, V> {
   if (params.error) {
-    const statusCode = Array.isArray(params.error)
-      ? (params.error[0]?.status ?? HttpStatusCode.INTERNAL_SERVER_ERROR)
-      : (params.error.status ?? HttpStatusCode.INTERNAL_SERVER_ERROR);
+    const statusCode =
+      params.error.status ?? HttpStatusCode.INTERNAL_SERVER_ERROR;
     return {
       success: false,
       status: statusCode,
@@ -102,13 +101,13 @@ export function createServiceReturn<T>(params: {
 }
 
 // 8. Function to Create Error Object
-export function createError(params: {
-  message: string | string[];
+export function createError<T>(params: {
   code: ErrorCode;
-}): ErrorObj {
+  content: T;
+}): ErrorObj<T> {
   return {
-    message: params.message,
     code: params.code,
     status: getStatusFromErrorCode(params.code),
+    content: params.content,
   };
 }

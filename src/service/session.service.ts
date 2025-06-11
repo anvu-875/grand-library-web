@@ -1,17 +1,13 @@
-import { userRoles } from '@/data-storage/schema';
 import { z } from 'zod';
 import uid from 'uid-safe';
 import redisClient from '@/data-storage/redis';
 import { Cookies } from '@/lib/type';
+import UserService from './user.service';
+import { sessionSchema } from '@/lib/schema-validation';
 
 const SESSION_EXPIRATION_SECONDS = 60 * 60 * 24 * 7;
 const COOKIE_SESSION_KEY = 'session_id';
 const genSessionTag = (sessionId: string) => `session:${sessionId}`;
-
-const sessionSchema = z.object({
-  id: z.string(),
-  role: z.enum(userRoles),
-});
 
 type UserSession = z.infer<typeof sessionSchema>;
 
@@ -40,6 +36,16 @@ export default class SessionService {
     return this.getUserSessionById(sessionId);
   }
 
+  async getFullUserFromSession(cookiesStore: Pick<Cookies, 'get'>) {
+    const sessionId = cookiesStore.get(COOKIE_SESSION_KEY)?.value;
+    if (!sessionId) return null;
+
+    const user = await this.getUserSessionById(sessionId);
+    if (!user) return null;
+    const fullUser = await UserService.getInstance().getFullUserById(user.id);
+    return fullUser;
+  }
+
   async removeUserFromSession(cookiesStore: Pick<Cookies, 'get' | 'delete'>) {
     const sessionId = cookiesStore.get(COOKIE_SESSION_KEY)?.value;
     if (!sessionId) return null;
@@ -65,6 +71,18 @@ export default class SessionService {
         ex: SESSION_EXPIRATION_SECONDS,
       }
     );
+  }
+
+  async updateUserSessionData(
+    user: UserSession,
+    cookies: Pick<Cookies, 'get'>
+  ) {
+    const sessionId = cookies.get(COOKIE_SESSION_KEY)?.value;
+    if (sessionId == null) return null;
+
+    await redisClient.set(`session:${sessionId}`, sessionSchema.parse(user), {
+      ex: SESSION_EXPIRATION_SECONDS,
+    });
   }
 
   async createUserSession(

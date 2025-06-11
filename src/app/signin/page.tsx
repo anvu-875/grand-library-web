@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,28 +24,66 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeClosed } from 'lucide-react';
+import { Eye, EyeClosed, Loader } from 'lucide-react';
 import { signInAction } from './action/signIn';
-
-const signInSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().nonempty('Password is required'),
-});
+import { ErrorCode } from '@/lib/serviceReturn';
+import { signInSchema } from '@/lib/schema-validation';
 
 type FormValues = z.infer<typeof signInSchema>;
 
 export default function SignInPage() {
   const [seePassword, setSeePassword] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const [signInState, SIAction, isSignInPending] = useActionState(
+    signInAction,
+    undefined
+  );
 
-  const form = useForm<FormValues>({
+  const signinForm = useForm<FormValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
       email: '',
       password: '',
     },
   });
+
+  useEffect(() => {
+    if (!signInState) return;
+    switch (signInState.code) {
+      case ErrorCode.UNPROCESSABLE_ENTITY: {
+        const errorFields = signInState.content as Record<
+          string,
+          string[] | undefined
+        >;
+        if (errorFields.email) {
+          signinForm.setError('email', {
+            message: errorFields.email?.[0],
+          });
+        }
+        if (errorFields.password) {
+          signinForm.setError('password', {
+            message: errorFields.password?.[0],
+          });
+        }
+        break;
+      }
+      case ErrorCode.UNAUTHORIZED: {
+        setErrorMsg(
+          signInState.content.message || 'Unknown Authentication Error'
+        );
+        break;
+      }
+      case ErrorCode.INTERNAL_SERVER_ERROR: {
+        setErrorMsg(
+          signInState.content.message ||
+            'Internal Server Error, please try again later'
+        );
+        break;
+      }
+    }
+  }, [signInState, signinForm]);
 
   const handleShowPassword = () => {
     const input = passwordInputRef.current;
@@ -66,8 +104,9 @@ export default function SignInPage() {
     }
   };
 
-  const onSubmit = () => {
+  const onSinginSubmit = () => {
     if (formRef.current) {
+      setErrorMsg(null);
       formRef.current.dispatchEvent(
         new Event('submit', { cancelable: true, bubbles: true })
       );
@@ -85,11 +124,14 @@ export default function SignInPage() {
           <CardDescription>Enter your email below to sign in</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form className='grid gap-4' action={signInAction} ref={formRef}>
+          {errorMsg && (
+            <div className='mb-3 text-destructive text-sm'>{errorMsg}</div>
+          )}
+          <Form {...signinForm}>
+            <form className='grid gap-4' action={SIAction} ref={formRef}>
               <div className='grid gap-2'>
                 <FormField
-                  control={form.control}
+                  control={signinForm.control}
                   name='email'
                   render={({ field }) => (
                     <FormItem>
@@ -108,15 +150,15 @@ export default function SignInPage() {
               </div>
               <div className='grid gap-2'>
                 <FormField
-                  control={form.control}
+                  control={signinForm.control}
                   name='password'
                   render={({ field }) => (
                     <FormItem className='relative'>
                       <FormLabel>Password</FormLabel>
-                      <FormControl>
+                      <FormControl className='relative'>
                         <Input
-                          type={seePassword ? 'text' : 'password'}
                           autoComplete='current-password'
+                          type={seePassword ? 'text' : 'password'}
                           className='pr-10'
                           {...field}
                           ref={(el) => {
@@ -128,7 +170,7 @@ export default function SignInPage() {
                       <Button
                         type='button'
                         variant='ghost'
-                        className='absolute right-0 bottom-0 rounded-tl-none rounded-bl-none'
+                        className='absolute right-0 top-5.5 rounded-tl-none rounded-bl-none'
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -146,8 +188,13 @@ export default function SignInPage() {
           </Form>
         </CardContent>
         <CardFooter className='flex flex-col gap-4'>
-          <Button className='w-full' onClick={form.handleSubmit(onSubmit)}>
-            Sign in
+          <Button
+            className='w-full'
+            onClick={signinForm.handleSubmit(onSinginSubmit)}
+            disabled={isSignInPending}
+          >
+            {isSignInPending && <Loader className='animate-spin' />}
+            {isSignInPending ? 'Signing in...' : 'Sign in'}
           </Button>
           <Separator className='my-4' />
           <div className='text-center text-sm text-gray-500'>
